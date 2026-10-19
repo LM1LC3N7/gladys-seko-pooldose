@@ -12,44 +12,27 @@ the notes of the version's GitHub Release.
 
 ### Added
 
-- A working example of scene triggers, scene actions and dashboard widgets
-  (Gladys 5.1.0 or later).
-- `CHANGELOG.md`, rolled by the Release workflow.
-- A GitHub Release for every version, with its changelog section as notes: the
-  Gladys Supervision page links each version to the repository's releases.
-- CI runs the tests on Node 22 and 24, and builds the Docker image.
-- Dependabot keeps the npm dependencies and the GitHub Actions up to date.
-- `SECURITY.md` (how to report a vulnerability) and `CLAUDE.md` (project rules
-  for contributors and coding assistants).
-- Manifest tests: `version` matches `package.json`, `docker_image` is tagged
-  with it, descriptions hold 10 to 100 characters, placeholders are
-  multi-language objects.
-- The latitude and longitude fields show an example value as placeholder.
+- SEKO PoolDose pool controllers through their local HTTP API (ported from
+  python-pooldose 0.9.15): `params.js`, the debug config (model, firmware,
+  ids), the instant values decoded with the mapping files of python-pooldose
+  (8 models, aliases included). Read only: no write endpoint is ever called,
+  nor the Wi-Fi endpoints (they answer with the Wi-Fi key).
+- Water temperature (°C, converted from °F), pH, ORP, free chlorine (generic
+  sensor in ppm), the pH, ORP and chlorine setpoints, the mode and the
+  direction of the dosing pumps (text), the pause of the dosing, the
+  circulation pump signal, 21 alarms as binary features.
+- Scene triggers "PoolDose alarm raised" and "PoolDose alarm cleared", one
+  event per transition, filtered by device and alarm; the first read is a
+  baseline and the alarms are kept in `/data`, so a restart never fires one
+  again.
+- Read every 60 s (30 to 900); the identity again every 6 h. A refusal
+  (401/403) stops the reads with a new try after 1 h, 6 h, then every 24 h;
+  a 429 pauses every path for 60 s to 6 h; no answer or a 5xx backs off (1 to
+  15 min, never faster than the interval); all kept across restarts.
+- "Test the connection" button; the status, the Discovery list and the badge
+  are sent again at each reconnection to Gladys; a republished device keeps
+  its features.
+- HTTP by default; HTTPS, another port and a self-signed certificate on
+  request. Feature names, dosing modes and alarm names in French or English.
 
-### Changed
-
-- Node.js 22 or later is required (Node 20 is end-of-life).
-- Integration SDK 0.15.0. The tests now run against the fake Gladys of the
-  SDK, which refuses the payloads Gladys refuses.
-- The refresh interval is one minute minimum, the fastest Gladys polls a
-  device. The plug's power is only sent when it changes, and every 30
-  minutes otherwise.
-
-### Fixed
-
-- Gladys refused the devices of the Discovery tab: the weather station and
-  the plug declared their poll frequency in seconds instead of one of the
-  values Gladys accepts, and were never polled. They now poll every minute,
-  and the readings follow the refresh interval of the configuration.
-
-- The release commit no longer fails `npm run format:check`: the Release
-  workflow updates the manifest `version` and `docker_image` in place instead
-  of re-printing the whole file with `jq`.
-- The integration can write to `/data`: the image creates the directory owned
-  by the `node` user, a new Docker volume was owned by root.
-- A sub-container running the integration's own image follows it to the new
-  tag at each release, as well as in the manifest of the build summary: it kept
-  the previous tag, which may not exist on the registry. Sub-containers on a
-  third-party image (a broker, a database...) keep theirs.
-
-[Unreleased]: https://github.com/GladysAssistant/integration-template-js/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-seko-pooldose/commits/main

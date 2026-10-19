@@ -1,177 +1,562 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "SEKO PoolDose",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "SEKO PoolDose pool controllers on the local network: pH, ORP, chlorine, temperature, alarms.",
+    "fr": "Régulateurs de piscine SEKO PoolDose en local : pH, redox, chlore, température, alarmes."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-seko-pooldose:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-seko-pooldose/main/cover.png",
+  "categories": ["environment", "appliances"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your PoolDose",
+        "fr": "Votre PoolDose"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Brings a SEKO PoolDose pool controller (and the VÁGNER POOL, BWT and KEMI DOSE models built on it) into Gladys, read through its own HTTP API on the local network, without the cloud: water temperature, pH, ORP, free chlorine, the pH, ORP and chlorine setpoints, the mode of the dosing pumps, the pause of the dosing and the alarms, each alarm also as a scene trigger. Enter the IP address of the device, save, then add it from the Discovery tab. Read only: Gladys never doses nor changes a setpoint. Ported from python-pooldose; never tested with a real device. Not affiliated with SEKO.",
+        "fr": "Amène dans Gladys un régulateur de piscine SEKO PoolDose (et les modèles VÁGNER POOL, BWT et KEMI DOSE qui en dérivent), lu par sa propre API HTTP sur le réseau local, sans le cloud : température de l’eau, pH, redox, chlore libre, consignes de pH, de redox et de chlore, mode des pompes doseuses, pause du dosage et alarmes, chaque alarme aussi en déclencheur de scène. Saisissez l’adresse IP de l’appareil, enregistrez, puis ajoutez-le depuis l’onglet Découverte. Lecture seule : Gladys ne dose jamais et ne change aucune consigne. Porté de python-pooldose ; jamais testé avec un vrai appareil. Sans lien avec SEKO."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-seko-pooldose/blob/main/docs/fr.md",
+          "label": {
+            "en": "Guide (French)",
+            "fr": "Guide (français)"
+          }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-seko-pooldose/blob/main/docs/en.md",
+          "label": {
+            "en": "Guide (English)",
+            "fr": "Guide (anglais)"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "host",
+      "type": "string",
+      "label": {
+        "en": "Address of the PoolDose",
+        "fr": "Adresse du PoolDose"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "description": {
+        "en": "Its IP address (or host name) on your network, as shown by your router. Give it a fixed address (DHCP reservation).",
+        "fr": "Son adresse IP (ou son nom d’hôte) sur votre réseau, telle que l’affiche votre box. Donnez-lui une adresse fixe (réservation DHCP)."
+      },
+      "placeholder": {
+        "en": "192.168.1.50",
+        "fr": "192.168.1.50"
+      },
+      "required": true
     },
     {
-      "key": "longitude",
+      "key": "port",
       "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "label": {
+        "en": "Port (optional)",
+        "fr": "Port (facultatif)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "0 for the standard port (80, or 443 with HTTPS).",
+        "fr": "0 pour le port standard (80, ou 443 en HTTPS)."
+      },
+      "required": false,
+      "default": 0,
+      "min": 0,
+      "max": 65535
     },
     {
-      "key": "unit",
+      "key": "use_ssl",
+      "type": "boolean",
+      "label": {
+        "en": "HTTPS",
+        "fr": "HTTPS"
+      },
+      "description": {
+        "en": "Only if your device answers in HTTPS. Off by default (the PoolDose answers in HTTP).",
+        "fr": "Seulement si votre appareil répond en HTTPS. Désactivé par défaut (le PoolDose répond en HTTP)."
+      },
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "ssl_verify",
+      "type": "boolean",
+      "label": {
+        "en": "Check the HTTPS certificate",
+        "fr": "Vérifier le certificat HTTPS"
+      },
+      "description": {
+        "en": "With HTTPS only. Turn it off for a self-signed certificate of the device.",
+        "fr": "En HTTPS seulement. Désactivez-le pour un certificat auto-signé de l’appareil."
+      },
+      "required": false,
+      "default": true
+    },
+    {
+      "key": "poll_interval",
+      "type": "number",
+      "label": {
+        "en": "Refresh interval (s)",
+        "fr": "Intervalle de rafraîchissement (s)"
+      },
+      "description": {
+        "en": "Seconds between two reads of the device (30 to 900).",
+        "fr": "Secondes entre deux lectures de l’appareil (30 à 900)."
+      },
+      "required": false,
+      "default": 60,
+      "min": 30,
+      "max": 900
+    },
+    {
+      "key": "language",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "label": {
+        "en": "Language of the names",
+        "fr": "Langue des noms"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Used for the feature names of the device added from now on, the dosing modes and the alarm names of the scene triggers.",
+        "fr": "Sert aux noms des fonctionnalités de l’appareil ajouté désormais, aux modes de dosage et aux noms d’alarme des déclencheurs de scène."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "fr",
+      "options": [
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français"
+          }
+        },
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion"
+      },
+      "description": {
+        "en": "Reads the device once (model, firmware, values). Also retries at once after a refusal.",
+        "fr": "Lit une fois l’appareil (modèle, micrologiciel, valeurs). Réessaie aussi aussitôt après un refus."
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
+      "key": "alarm_raised",
+      "label": {
+        "en": "PoolDose alarm raised",
+        "fr": "Alarme PoolDose déclenchée"
+      },
       "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+        "en": "An alarm of the PoolDose turned on (pH too high, empty tank, no water flow...). Seen at the next read of the device.",
+        "fr": "Une alarme du PoolDose s’est déclenchée (pH trop haut, bidon vide, pas de débit d’eau...). Vue à la lecture suivante de l’appareil."
       },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+          "label": {
+            "en": "PoolDose",
+            "fr": "PoolDose"
+          }
         },
         {
-          "key": "target",
+          "key": "alarm",
           "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
+          "label": {
+            "en": "Alarms",
+            "fr": "Alarmes"
+          },
           "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+            {
+              "value": "alarm-pump",
+              "label": {
+                "en": "Dosing pump alarm",
+                "fr": "Alarme pompe doseuse"
+              }
+            },
+            {
+              "value": "alarm-ph-tank",
+              "label": {
+                "en": "pH tank level alarm",
+                "fr": "Alarme niveau bidon pH"
+              }
+            },
+            {
+              "value": "alarm-orp-tank",
+              "label": {
+                "en": "ORP tank level alarm",
+                "fr": "Alarme niveau bidon redox"
+              }
+            },
+            {
+              "value": "alarm-chlorine-tank",
+              "label": {
+                "en": "Chlorine tank level alarm",
+                "fr": "Alarme niveau bidon chlore"
+              }
+            },
+            {
+              "value": "alarm-flow",
+              "label": {
+                "en": "Water flow alarm",
+                "fr": "Alarme débit d’eau"
+              }
+            },
+            {
+              "value": "alarm-relay",
+              "label": {
+                "en": "Alarm relay",
+                "fr": "Relais d’alarme"
+              }
+            },
+            {
+              "value": "alarm-ph-overfeed",
+              "label": {
+                "en": "pH overfeed alarm",
+                "fr": "Alarme surdosage pH"
+              }
+            },
+            {
+              "value": "alarm-ph-overfeed-2",
+              "label": {
+                "en": "pH overfeed alarm 2",
+                "fr": "Alarme surdosage pH 2"
+              }
+            },
+            {
+              "value": "alarm-orp-overfeed",
+              "label": {
+                "en": "ORP overfeed alarm",
+                "fr": "Alarme surdosage redox"
+              }
+            },
+            {
+              "value": "alarm-orp-overfeed-2",
+              "label": {
+                "en": "ORP overfeed alarm 2",
+                "fr": "Alarme surdosage redox 2"
+              }
+            },
+            {
+              "value": "alarm-chlorine-overfeed",
+              "label": {
+                "en": "Chlorine overfeed alarm",
+                "fr": "Alarme surdosage chlore"
+              }
+            },
+            {
+              "value": "alarm-chlorine-overfeed-2",
+              "label": {
+                "en": "Chlorine overfeed alarm 2",
+                "fr": "Alarme surdosage chlore 2"
+              }
+            },
+            {
+              "value": "alarm-water-cold",
+              "label": {
+                "en": "Water too cold",
+                "fr": "Eau trop froide"
+              }
+            },
+            {
+              "value": "alarm-water-hot",
+              "label": {
+                "en": "Water too hot",
+                "fr": "Eau trop chaude"
+              }
+            },
+            {
+              "value": "alarm-ph-low",
+              "label": {
+                "en": "pH too low",
+                "fr": "pH trop bas"
+              }
+            },
+            {
+              "value": "alarm-ph-high",
+              "label": {
+                "en": "pH too high",
+                "fr": "pH trop haut"
+              }
+            },
+            {
+              "value": "alarm-orp-low",
+              "label": {
+                "en": "Chlorine too low (ORP)",
+                "fr": "Chlore trop bas (redox)"
+              }
+            },
+            {
+              "value": "alarm-orp-high",
+              "label": {
+                "en": "Chlorine too high (ORP)",
+                "fr": "Chlore trop haut (redox)"
+              }
+            },
+            {
+              "value": "alarm-chlorine-low",
+              "label": {
+                "en": "Chlorine too low",
+                "fr": "Chlore trop bas"
+              }
+            },
+            {
+              "value": "alarm-chlorine-high",
+              "label": {
+                "en": "Chlorine too high",
+                "fr": "Chlore trop haut"
+              }
+            },
+            {
+              "value": "alarm-standby",
+              "label": {
+                "en": "System on standby",
+                "fr": "Système en veille"
+              }
+            }
           ]
         }
       ],
       "variables": [
         {
-          "key": "target",
+          "key": "alarm_name",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Name of the alarm",
+            "fr": "Nom de l’alarme"
+          }
+        },
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Name of the PoolDose",
+            "fr": "Nom du PoolDose"
+          }
         }
       ]
-    }
-  ],
-  "scene_actions": [
+    },
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "alarm_cleared",
+      "label": {
+        "en": "PoolDose alarm cleared",
+        "fr": "Alarme PoolDose terminée"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "An alarm of the PoolDose turned off. Seen at the next read of the device.",
+        "fr": "Une alarme du PoolDose s’est arrêtée. Vue à la lecture suivante de l’appareil."
+      },
       "fields": [
         {
           "key": "device",
           "type": "select",
           "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
+          "label": {
+            "en": "PoolDose",
+            "fr": "PoolDose"
+          }
+        },
+        {
+          "key": "alarm",
+          "type": "multi_select",
+          "label": {
+            "en": "Alarms",
+            "fr": "Alarmes"
+          },
+          "options": [
+            {
+              "value": "alarm-pump",
+              "label": {
+                "en": "Dosing pump alarm",
+                "fr": "Alarme pompe doseuse"
+              }
+            },
+            {
+              "value": "alarm-ph-tank",
+              "label": {
+                "en": "pH tank level alarm",
+                "fr": "Alarme niveau bidon pH"
+              }
+            },
+            {
+              "value": "alarm-orp-tank",
+              "label": {
+                "en": "ORP tank level alarm",
+                "fr": "Alarme niveau bidon redox"
+              }
+            },
+            {
+              "value": "alarm-chlorine-tank",
+              "label": {
+                "en": "Chlorine tank level alarm",
+                "fr": "Alarme niveau bidon chlore"
+              }
+            },
+            {
+              "value": "alarm-flow",
+              "label": {
+                "en": "Water flow alarm",
+                "fr": "Alarme débit d’eau"
+              }
+            },
+            {
+              "value": "alarm-relay",
+              "label": {
+                "en": "Alarm relay",
+                "fr": "Relais d’alarme"
+              }
+            },
+            {
+              "value": "alarm-ph-overfeed",
+              "label": {
+                "en": "pH overfeed alarm",
+                "fr": "Alarme surdosage pH"
+              }
+            },
+            {
+              "value": "alarm-ph-overfeed-2",
+              "label": {
+                "en": "pH overfeed alarm 2",
+                "fr": "Alarme surdosage pH 2"
+              }
+            },
+            {
+              "value": "alarm-orp-overfeed",
+              "label": {
+                "en": "ORP overfeed alarm",
+                "fr": "Alarme surdosage redox"
+              }
+            },
+            {
+              "value": "alarm-orp-overfeed-2",
+              "label": {
+                "en": "ORP overfeed alarm 2",
+                "fr": "Alarme surdosage redox 2"
+              }
+            },
+            {
+              "value": "alarm-chlorine-overfeed",
+              "label": {
+                "en": "Chlorine overfeed alarm",
+                "fr": "Alarme surdosage chlore"
+              }
+            },
+            {
+              "value": "alarm-chlorine-overfeed-2",
+              "label": {
+                "en": "Chlorine overfeed alarm 2",
+                "fr": "Alarme surdosage chlore 2"
+              }
+            },
+            {
+              "value": "alarm-water-cold",
+              "label": {
+                "en": "Water too cold",
+                "fr": "Eau trop froide"
+              }
+            },
+            {
+              "value": "alarm-water-hot",
+              "label": {
+                "en": "Water too hot",
+                "fr": "Eau trop chaude"
+              }
+            },
+            {
+              "value": "alarm-ph-low",
+              "label": {
+                "en": "pH too low",
+                "fr": "pH trop bas"
+              }
+            },
+            {
+              "value": "alarm-ph-high",
+              "label": {
+                "en": "pH too high",
+                "fr": "pH trop haut"
+              }
+            },
+            {
+              "value": "alarm-orp-low",
+              "label": {
+                "en": "Chlorine too low (ORP)",
+                "fr": "Chlore trop bas (redox)"
+              }
+            },
+            {
+              "value": "alarm-orp-high",
+              "label": {
+                "en": "Chlorine too high (ORP)",
+                "fr": "Chlore trop haut (redox)"
+              }
+            },
+            {
+              "value": "alarm-chlorine-low",
+              "label": {
+                "en": "Chlorine too low",
+                "fr": "Chlore trop bas"
+              }
+            },
+            {
+              "value": "alarm-chlorine-high",
+              "label": {
+                "en": "Chlorine too high",
+                "fr": "Chlore trop haut"
+              }
+            },
+            {
+              "value": "alarm-standby",
+              "label": {
+                "en": "System on standby",
+                "fr": "Système en veille"
+              }
+            }
+          ]
         }
       ],
-      "outputs": [
+      "variables": [
         {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "key": "alarm_name",
+          "type": "string",
+          "label": {
+            "en": "Name of the alarm",
+            "fr": "Nom de l’alarme"
+          }
+        },
+        {
+          "key": "device_name",
+          "type": "string",
+          "label": {
+            "en": "Name of the PoolDose",
+            "fr": "Nom du PoolDose"
+          }
         }
       ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
     }
   ]
 }

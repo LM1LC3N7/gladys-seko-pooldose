@@ -2,3 +2,5 @@ node_modules/
 package-lock.json
 data/
 *.log
+# The mapping files of python-pooldose, kept as they are.
+src/mappings/
