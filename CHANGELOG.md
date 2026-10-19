@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-19
+
 ### Added
 
 - SEKO PoolDose pool controllers through their local HTTP API (ported from
@@ -49,4 +51,5 @@ the notes of the version's GitHub Release.
 - Dosing labels: `on_off` added; "low" / "high" shown as "Low" / "High".
 - getInstantValues is sent without a body (`Content-Length: 0`).
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-seko-pooldose/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-seko-pooldose/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-seko-pooldose/releases/tag/v0.1.1
