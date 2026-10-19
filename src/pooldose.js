@@ -79,22 +79,31 @@ function unitOf(entry) {
   if (typeof first !== 'string' || first === '' || first.length > 16) {
     return undefined;
   }
-  const lower = first.toLowerCase();
+  // The masculine ordinal "º" and the ring "˚" stand for the degree sign on some firmwares.
+  const unit = first.replace(/^[º˚]/, '°');
+  const lower = unit.toLowerCase();
   if (lower === 'undefined' || lower === 'ph') {
     return undefined;
   }
-  return lower === 'cl2' || lower === 'chlorine' ? 'ppm' : first;
+  return lower === 'cl2' || lower === 'chlorine' ? 'ppm' : unit;
 }
 
-/** "O" (on) / "F" (off), a boolean, a number. */
+/**
+ * "O" (on) / "F" (off), a boolean, 0 / 1 (a number or its string). Anything
+ * else is unknown (undefined), never "off": an alarm keeps its last state
+ * rather than being cleared by an answer it does not understand.
+ */
 function toBoolean(value) {
-  if (value === undefined || value === null) {
-    return undefined;
+  if (typeof value === 'boolean') {
+    return value;
   }
-  if (typeof value === 'string') {
-    return value.toUpperCase() === 'O';
+  if (value === 'O' || value === 'o' || value === 1 || value === '1') {
+    return true;
   }
-  return Boolean(value);
+  if (value === 'F' || value === 'f' || value === 0 || value === '0') {
+    return false;
+  }
+  return undefined;
 }
 
 const isEntry = (entry) => entry !== null && typeof entry === 'object' && !Array.isArray(entry);

@@ -96,14 +96,15 @@ export class PoolDoseClient {
     const headers = {
       Accept: 'application/json, text/javascript, */*',
       'User-Agent': API.userAgent,
-      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+      // A POST without a body, as python-pooldose sends getInstantValues.
+      ...(method === 'POST' ? { 'Content-Type': 'application/json', 'Content-Length': '0' } : {}),
     };
     let response;
     try {
       response = await this.transport(`${baseUrl(this.target)}${path}`, {
         method,
         headers,
-        body: method === 'POST' ? '{}' : undefined,
+        body: undefined,
         timeout: this.timeoutMs ?? TIMINGS.requestTimeout,
         maxBytes,
         insecure: this.target.useSsl && !this.target.sslVerify,

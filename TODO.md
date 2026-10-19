@@ -26,7 +26,10 @@ up to date at the end of every milestone.
 - [ ] **Milestone 2 — real device**: a user with a PoolDose compares the
       values with the device's web page: the units of `magnitude` (°C/°F,
       mV, CL2/ppm), the meaning of `alarm_ofa2_*`, `relay_alarm`, the
-      `circulation_pump_status` labels; the answer when the device is busy
+      `circulation_pump_status` labels; the meaning of `alarm-pump` on R1V0/HC
+      (PDPR1H1HAR1V0, PDHC1H1HAR1V0/V1: their mapping turns an ON/OFF label
+      into O/F, and ON may mean "the pump runs" rather than "alarm"; the
+      mapping files stay untouched until a user confirms); the answer when the device is busy
       (HTTP status, delays); the Discovery name.
 - [ ] **Milestone 3 — more readings**: probe calibrations (offset, slope,
       type), overfeed thresholds (`ofa_*_lower/upper`, `ofa_*_time`), water

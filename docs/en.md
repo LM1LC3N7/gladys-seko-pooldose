@@ -106,6 +106,12 @@ firmware update), and by the **Test the connection** button.
 
 - Never tested with a real device: the mappings come from python-pooldose,
   checked by its users.
+- On the VÁGNER POOL VA DOS (PDPR1H1HAR1V0, PDHC1H1HAR1V0/V1), the meaning
+  of the **dosing pump alarm** is not confirmed: the device gives an ON/OFF
+  label that may mean "the pump runs" rather than "alarm". Check it on the
+  device before using it in a scene.
+- The "Low" / "High" values of the ORP or chlorine dosing direction are
+  given as the device names them.
 - Read only: no command of the dosing pumps, the setpoints, the pause of the
   dosing nor the relays (planned later, off by default).
 - Not read yet: probe calibrations, overfeed thresholds, water flow and

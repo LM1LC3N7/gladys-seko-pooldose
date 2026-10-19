@@ -181,7 +181,7 @@ test('the states of the created device, the badge local', async (t) => {
   assert.equal(last(gladys, 'ph-dosing-method'), 'Proportionnel');
   assert.equal(last(gladys, 'orp-dosing-method'), 'Tout ou rien');
   assert.equal(last(gladys, 'ph-dosing-type'), 'Acide (pH−)');
-  assert.equal(last(gladys, 'orp-dosing-type'), 'Fait baisser la valeur');
+  assert.equal(last(gladys, 'orp-dosing-type'), 'Bas', 'the word of the device, not a guess');
   assert.equal(last(gladys, 'dosing-paused'), 0);
   assert.equal(last(gladys, 'circulation-pump'), 1, 'the ENABLED label, through the mapping');
   assert.equal(last(gladys, 'alarm-pump'), 0);
@@ -499,5 +499,136 @@ test('the logs never hold the address of the device', async (t) => {
   assert.ok(
     logs.every((line) => !line.includes(HOST)),
     logs.join('\n'),
+  );
+});
+
+// --- Review fixes (milestone 1) ----------------------------------------------
+
+const TEMPERATURE_UNIT = rawKey('w_1fkpc4jak');
+
+test('I1: °F in every spelling, or from temperature_unit without a magnitude', async (t) => {
+  for (const [magnitude, setting] of [
+    [undefined, '|PDPR1H1HAW100_FW539187_LABEL_w_1fkpc4jak__F|'],
+    [['ºF']],
+    [['˚F']],
+    [['°F']],
+    [['F']],
+  ]) {
+    const server = fakePoolDose();
+    server.values[rawKey('w_1eommf39k')] = magnitude
+      ? { current: 80.6, magnitude }
+      : { current: 80.6 };
+    if (setting) {
+      server.values[TEMPERATURE_UNIT] = { current: setting };
+    }
+    const { gladys, app } = await setup(t, { server });
+    assert.equal(last(gladys, 'temperature'), 27, JSON.stringify(magnitude));
+    app.stop();
+    t.mock.timers.reset();
+  }
+  // °C by the setting, and a magnitude wins over the setting.
+  const server = fakePoolDose();
+  server.values[rawKey('w_1eommf39k')] = { current: 26, magnitude: ['°C'] };
+  server.values[TEMPERATURE_UNIT] = { current: '|PDPR1H1HAW100_FW539187_LABEL_w_1fkpc4jak__F|' };
+  const { gladys } = await setup(t, { server });
+  assert.equal(last(gladys, 'temperature'), 26);
+});
+
+test('M1: an alarm answer other than O/F, a boolean or 0/1 keeps the alarm as it was', async (t) => {
+  const server = fakePoolDose();
+  server.setAlarm('alarm-pump', true);
+  const { gladys, advance } = await setup(t, { server });
+  assert.equal(last(gladys, 'alarm-pump'), 1);
+  for (const current of ['', 'X', 2, null, '|PDPR1H1HAW100_FW539187_LABEL_w_1ekga097n_ON|']) {
+    server.values[rawKey('w_1ekga097n')] = { current };
+    await advance(MINUTE);
+    assert.deepEqual(gladys.fake.sceneEvents, [], `"${current}" is not a "cleared"`);
+    assert.equal(last(gladys, 'alarm-pump'), 1);
+  }
+  server.values[rawKey('w_1ekga097n')] = { current: 0 };
+  await advance(MINUTE);
+  assert.deepEqual(
+    gladys.fake.sceneEvents.map((e) => [e.key, e.data.alarm]),
+    [[SCENE_TRIGGERS.ALARM_CLEARED, 'alarm-pump']],
+  );
+  server.values[rawKey('w_1ekga097n')] = { current: '1' };
+  await advance(MINUTE);
+  assert.equal(gladys.fake.sceneEvents.at(-1).key, SCENE_TRIGGERS.ALARM_RAISED);
+});
+
+test('M2: a failed write of /data is said in the status, until a write works again', async (t) => {
+  const store = memoryStore();
+  const server = fakePoolDose();
+  const { gladys, advance } = await setup(t, { store, server });
+  const save = store.save.bind(store);
+  store.save = async () => {
+    throw new Error('EROFS');
+  };
+  server.setAlarm('alarm-pump', true);
+  await advance(MINUTE);
+  assert.match(message(gladys).en, /could not be saved in \/data/);
+  assert.match(message(gladys).fr, /Connecté à .*pas pu être enregistré dans \/data/);
+  store.save = save;
+  await advance(MINUTE);
+  assert.doesNotMatch(message(gladys).en, /could not be saved/);
+  assert.match(message(gladys).en, /^Connected to/);
+});
+
+test('M3: a new address keeps the alarms of the device (DID), only the pause and the stop go', async (t) => {
+  const store = memoryStore();
+  const server = fakePoolDose();
+  server.setAlarm('alarm-pump', true);
+  const { gladys } = await setup(t, { store, server });
+  server.setAlarm('alarm-pump', false);
+  server.queue.push({ match: to.values, status: 429, headers: { 'retry-after': '3600' } });
+  // The pause belongs to the old address.
+  await gladys.fake.action(ACTIONS.TEST_CONNECTION);
+  assert.equal(store.data.pause.kind, 'rate');
+  await gladys.fake.configUpdated({ host: '192.168.1.77' });
+  await settle();
+  assert.equal(store.data.pause, null);
+  assert.deepEqual(
+    gladys.fake.sceneEvents.map((e) => [e.key, e.data.alarm]),
+    [[SCENE_TRIGGERS.ALARM_CLEARED, 'alarm-pump']],
+  );
+  assert.equal(device(gladys).external_id, DEV);
+});
+
+test('M4: a restart while the device does not answer turns its badge unreachable', async (t) => {
+  const store = memoryStore();
+  const server = fakePoolDose();
+  const first = await setup(t, { store, server });
+  assert.equal(store.data.deviceId, DEVICE_ID);
+  first.app.stop();
+  t.mock.timers.reset();
+  server.down = true;
+  const again = await setup(t, {
+    store,
+    server,
+    create: false,
+    devices: first.gladys.fake.devices,
+  });
+  assert.equal(badge(again.gladys).transport, 'unreachable');
+  again.app.stop();
+  t.mock.timers.reset();
+  // Without the DID in /data: the only PoolDose device of the integration.
+  const bare = memoryStore({ target: store.data.target });
+  const third = await setup(t, {
+    store: bare,
+    server,
+    create: false,
+    devices: first.gladys.fake.devices,
+  });
+  assert.equal(badge(third.gladys).transport, 'unreachable');
+});
+
+test('M8: getInstantValues is a POST without a body (Content-Length: 0)', async (t) => {
+  const { server } = await setup(t);
+  const post = server.requests.find(to.values);
+  assert.equal(post.method, 'POST');
+  assert.equal(post.body, undefined);
+  assert.equal(post.headers['Content-Length'], '0');
+  assert.ok(
+    server.requests.filter((r) => r.method === 'GET').every((r) => !r.headers['Content-Length']),
   );
 });

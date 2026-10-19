@@ -75,12 +75,14 @@ export const DOSING_LABELS = {
   off: both('Off', 'Arrêt'),
   proportional: both('Proportional', 'Proportionnel'),
   'on / off': both('On / off', 'Tout ou rien'),
+  on_off: both('On / off', 'Tout ou rien'),
   timed: both('Timed', 'Temporisé'),
   cycle: both('Cycle', 'Cycle'),
   acid: both('Acid (pH−)', 'Acide (pH−)'),
   alcalyne: both('Alkaline (pH+)', 'Alcalin (pH+)'),
-  low: both('Lowers the value', 'Fait baisser la valeur'),
-  high: both('Raises the value', 'Fait monter la valeur'),
+  // The ORP / chlorine dosing direction as the device names it, without guessing its meaning.
+  low: both('Low', 'Bas'),
+  high: both('High', 'Haut'),
 };
 
 const plural = (n, en, fr) => (n > 1 ? both(`${en}s`, `${fr}s`) : both(en, fr));
@@ -133,6 +135,10 @@ export const T = {
   readOnly: both(
     'Read only in this version: the PoolDose is never commanded from Gladys (no dosing, no setpoint).',
     'Lecture seule dans cette version : le PoolDose n’est jamais commandé depuis Gladys (ni dosage, ni consigne).',
+  ),
+  storeFailed: both(
+    'Warning: the state could not be saved in /data (pauses and alarms are lost at a restart, an alarm may be announced twice).',
+    'Attention : l’état n’a pas pu être enregistré dans /data (pauses et alarmes perdues au redémarrage, une alarme peut être annoncée deux fois).',
   ),
   deviceNoAnswer: both('The PoolDose does not answer.', 'Le PoolDose ne répond pas.'),
   alarms: (n) => plural(n, `${n} active alarm`, `${n} alarme active`),

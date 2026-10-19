@@ -35,4 +35,18 @@ the notes of the version's GitHub Release.
 - HTTP by default; HTTPS, another port and a self-signed certificate on
   request. Feature names, dosing modes and alarm names in French or English.
 
+### Fixed
+
+- A temperature without a magnitude follows the unit setting of the device
+  (°F converted); "ºF" and "˚F" are read as "°F".
+- An alarm answer other than O/F, a boolean or 0/1 keeps the alarm as it was
+  (no false "cleared").
+- A failed write of `/data` is said in the status.
+- A new address keeps the alarm memory of the device (keyed by its id): only
+  the pause and the stop are reset.
+- The badge turns unreachable after a restart while the device does not
+  answer (its id is kept in `/data`).
+- Dosing labels: `on_off` added; "low" / "high" shown as "Low" / "High".
+- getInstantValues is sent without a body (`Content-Length: 0`).
+
 [Unreleased]: https://github.com/LM1LC3N7/gladys-seko-pooldose/commits/main

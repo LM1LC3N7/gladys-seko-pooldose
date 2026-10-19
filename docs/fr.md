@@ -111,6 +111,12 @@ pour les valeurs. Le modèle et le micrologiciel sont relus toutes les 6 heures
 
 - Jamais testé avec un vrai appareil : les correspondances viennent de
   python-pooldose, vérifiées par ses utilisateurs.
+- Sur les VÁGNER POOL VA DOS (PDPR1H1HAR1V0, PDHC1H1HAR1V0/V1), le sens de
+  l'**alarme pompe doseuse** n'est pas confirmé : l'appareil donne un libellé
+  ON/OFF qui pourrait signifier « la pompe tourne » plutôt qu'« alarme ».
+  Vérifiez-la sur l'appareil avant de vous en servir dans une scène.
+- Les valeurs « Bas » / « Haut » du sens du dosage redox ou chlore sont
+  données telles que l'appareil les nomme.
 - Lecture seule : pas de commande des pompes doseuses, des consignes, de la
   pause du dosage ni des relais (prévu plus tard, désactivé par défaut).
 - Non lus pour l'instant : calibrations des sondes, seuils de surdosage,

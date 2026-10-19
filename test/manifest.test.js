@@ -58,6 +58,16 @@ test('the store basics, version 0.1.0 everywhere', () => {
     assert.doesNotMatch(read(file), /encrypt|chiffr/i, file);
   }
   assert.match(read('CHANGELOG.md'), /## \[Unreleased\]/);
+  // M7: the unconfirmed meaning of alarm-pump on R1V0/HC is tracked and said.
+  assert.match(read('TODO.md'), /`alarm-pump` on R1V0\/HC/);
+  assert.match(
+    read('docs/en.md').replace(/\s+/g, ' '),
+    /PDPR1H1HAR1V0.*dosing pump alarm\*\* is not confirmed/,
+  );
+  assert.match(
+    read('docs/fr.md').replace(/\s+/g, ' '),
+    /PDPR1H1HAR1V0.*alarme pompe doseuse\*\* n'est pas confirmé/,
+  );
   assert.match(read('TODO.md'), /## Decisions/);
 });
 

@@ -6,6 +6,8 @@
 //   - the alarms active at the last read of each device, so a restart does
 //     not fire the scene triggers again, and an alarm raised meanwhile does.
 // The file is readable by the container user only (0600).
+//   - the DID of the device, for its badge after a restart while it does not
+//     answer.
 // -----------------------------------------------------------------------------
 
 import { open, readFile, rename } from 'node:fs/promises';
@@ -93,5 +95,13 @@ export function normalizeMemory(raw, now = Date.now()) {
       }
     }
   }
-  return { target, pause, block, alarms };
+  // The DID of the last device read: its badge after a restart while it does not answer.
+  const deviceId =
+    target &&
+    typeof raw?.deviceId === 'string' &&
+    DEVICE_ID.test(raw.deviceId) &&
+    !['__proto__', 'constructor', 'prototype'].includes(raw.deviceId)
+      ? raw.deviceId
+      : undefined;
+  return { target, pause, block, alarms, deviceId };
 }

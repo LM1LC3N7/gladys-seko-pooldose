@@ -64,6 +64,10 @@ export class PoolDoseApp {
     this.timer = undefined;
     this.running = undefined;
     this.lastStatus = undefined;
+    /** [connected, message] last asked, before the /data warning is added. */
+    this.rawStatus = undefined;
+    /** The last write of /data failed. */
+    this.storeFailed = false;
     this.lastTestAt = -Infinity;
     this.reset();
   }
@@ -105,8 +109,14 @@ export class PoolDoseApp {
       return;
     }
     if (this.memory.target !== this.config.target) {
-      // Another device: its pauses, its stop and its alarms are not this one's.
-      this.memory = normalizeMemory({ target: this.config.target }, this.now());
+      // Another address: its pause and its stop are not this one's. The alarms
+      // and the device id stay: they are keyed by the DID, and a PoolDose given
+      // a new IP address (DHCP) is the same device, its transitions go on.
+      const { alarms, deviceId } = this.memory;
+      this.memory = normalizeMemory(
+        { target: this.config.target, alarms: { ...alarms }, deviceId },
+        this.now(),
+      );
     }
     if (fresh) {
       this.memory.block = null;
@@ -159,11 +169,9 @@ export class PoolDoseApp {
     await this.configUpdated(raw);
     this.published = undefined;
     this.badge = undefined;
-    const status = this.lastStatus;
     this.lastStatus = undefined;
-    if (status) {
-      const [connected, message] = JSON.parse(status);
-      await this.setStatus(connected, message ?? undefined);
+    if (this.rawStatus) {
+      await this.setStatus(...this.rawStatus);
     }
     await this.publishDevices();
     await this.publishBadge();
@@ -191,14 +199,21 @@ export class PoolDoseApp {
     }
   }
 
+  /** The status, with a warning while /data cannot be written. */
   async setStatus(connected, message) {
-    const key = JSON.stringify([connected, message ?? null]);
+    this.rawStatus = [connected, message];
+    const shown = this.storeFailed
+      ? message
+        ? join(message, T.storeFailed)
+        : T.storeFailed
+      : message;
+    const key = JSON.stringify([connected, shown ?? null]);
     if (key === this.lastStatus) {
       return;
     }
     this.lastStatus = key;
     await this.gladys
-      .setConnectionStatus(connected, message)
+      .setConnectionStatus(connected, shown)
       .catch((err) => this.logger.warn(`setConnectionStatus failed: ${err.message}`));
   }
 
@@ -207,10 +222,25 @@ export class PoolDoseApp {
     return JSON.parse(this.lastStatus ?? '[false,null]')[1] ?? undefined;
   }
 
+  /**
+   * Writes /data. A failure is said in the status (the pauses, the stop and
+   * the alarms would not survive a restart: an alarm could be announced
+   * twice), and cleared by the next successful write.
+   */
   async saveMemory() {
-    await this.store
-      .save(this.memory)
-      .catch((err) => this.logger.warn(`Saving the state to /data failed: ${err.message}`));
+    let failed = false;
+    try {
+      await this.store.save(this.memory);
+    } catch (err) {
+      failed = true;
+      this.logger.warn(`Saving the state to /data failed: ${err.message}`);
+    }
+    if (failed !== this.storeFailed) {
+      this.storeFailed = failed;
+      if (this.rawStatus) {
+        await this.setStatus(...this.rawStatus);
+      }
+    }
   }
 
   /** The pause and the stop, with the address they belong to. */
@@ -298,7 +328,7 @@ export class PoolDoseApp {
       this.offline = false;
       this.pauseKind = undefined;
       this.pausedUntil = 0;
-      if (hadStop || this.memory.block || this.memory.pause) {
+      if (hadStop || this.memory.block || this.memory.pause || this.storeFailed) {
         await this.persist();
       }
       await this.setStatus(
@@ -361,6 +391,11 @@ export class PoolDoseApp {
     }
     this.identity = identity;
     this.identifiedAt = this.now();
+    if (this.memory.deviceId !== identity.deviceId) {
+      // Kept for the badge of a restart while the device does not answer.
+      this.memory.deviceId = identity.deviceId;
+      await this.saveMemory();
+    }
     this.mapping = mappingFor(identity.productCode, identity.fwCode);
     const model = `${identity.productCode ?? '?'}/${identity.fwCode ?? '?'}/${apiVersion ?? '?'}`;
     if (this.loggedModel !== model) {
@@ -475,12 +510,21 @@ export class PoolDoseApp {
 
   // --- Gladys ----------------------------------------------------------------
 
+  /**
+   * The device created in Gladys: by the DID read this session, else the one
+   * kept in /data (a restart while the device does not answer), else the only
+   * PoolDose device of this integration.
+   */
   createdDevice() {
-    if (!this.identity) {
-      return undefined;
+    const devices = this.gladys.devices ?? [];
+    const id = this.identity?.deviceId ?? this.memory.deviceId;
+    if (id) {
+      const externalId = deviceIds(this.gladys, id).device;
+      return devices.find((d) => d.external_id === externalId);
     }
-    const externalId = deviceIds(this.gladys, this.identity.deviceId).device;
-    return (this.gladys.devices ?? []).find((d) => d.external_id === externalId);
+    const prefix = this.gladys.externalId('pooldose:');
+    const ours = devices.filter((d) => String(d.external_id).startsWith(prefix));
+    return ours.length === 1 ? ours[0] : undefined;
   }
 
   /** The roles of the device already created in Gladys. */

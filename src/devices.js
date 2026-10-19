@@ -143,7 +143,7 @@ function dosingText(value, language) {
 }
 
 /** The value of one decoded entry for a role, or undefined when unusable. */
-function readValue(read, entry, language) {
+function readValue(read, entry, language, temperatureUnit) {
   const value = entry?.value;
   if (read === 'binary') {
     return typeof value === 'boolean' ? (value ? 1 : 0) : undefined;
@@ -158,10 +158,12 @@ function readValue(read, entry, language) {
   const unit = typeof entry.unit === 'string' ? entry.unit.toLowerCase() : undefined;
   if (read === 'temperature') {
     // The device can show °F: Gladys gets °C (the unit is fixed at creation).
-    if (unit === '°f' || unit === 'f') {
+    // Without a magnitude, the unit setting of the device (temperature_unit) tells.
+    const scale = TEMPERATURE_UNITS[unit ?? temperatureUnit ?? 'c'];
+    if (scale === 'f') {
       return round(((number - 32) * 5) / 9, 1);
     }
-    return unit === undefined || unit === '°c' || unit === 'c' ? round(number, 1) : undefined;
+    return scale === 'c' ? round(number, 1) : undefined;
   }
   if (read === 'ph') {
     return number >= 0 && number <= 14 ? round(number, 2) : undefined;
@@ -173,12 +175,30 @@ function readValue(read, entry, language) {
   return unit === undefined || unit === 'ppm' || unit === 'mg/l' ? round(number, 2) : undefined;
 }
 
+/** The temperature units a magnitude or the temperature_unit setting can give -> scale. */
+const TEMPERATURE_UNITS = Object.assign(Object.create(null), {
+  '°c': 'c',
+  c: 'c',
+  degc: 'c',
+  celsius: 'c',
+  '°f': 'f',
+  f: 'f',
+  degf: 'f',
+  fahrenheit: 'f',
+});
+
 /** role -> value of the decoded values of a device (only the roles it answered). */
 export function valuesOf(decoded, language) {
   const values = new Map();
+  const setting = decoded.get('temperature_unit')?.value;
+  // An unknown setting is ignored (°C, as python-pooldose without a magnitude).
+  const temperatureUnit =
+    typeof setting === 'string' && TEMPERATURE_UNITS[setting.toLowerCase()]
+      ? setting.toLowerCase()
+      : undefined;
   for (const [role, { keys, read }] of ROLE_TABLE) {
     for (const key of keys) {
-      const value = readValue(read, decoded.get(key), language);
+      const value = readValue(read, decoded.get(key), language, temperatureUnit);
       if (value !== undefined) {
         values.set(role, value);
         break;

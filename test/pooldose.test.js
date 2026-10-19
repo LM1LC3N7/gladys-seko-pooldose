@@ -11,7 +11,7 @@ import { normalizeConfig, parseHost } from '../src/config.js';
 import { TIMINGS } from '../src/constants.js';
 import { ALARM_KEYS, ALARMS, ROLES, buildDevice, valuesOf } from '../src/devices.js';
 import { parseJson } from '../src/http.js';
-import { ALARM_NAMES, FEATURE_NAMES } from '../src/i18n.js';
+import { ALARM_NAMES, DOSING_LABELS, FEATURE_NAMES } from '../src/i18n.js';
 import { MODEL_ALIASES, SUPPORTED, decode, mappingFor, toNumber } from '../src/pooldose.js';
 import { normalizeMemory } from '../src/store.js';
 import { DEVICE_ID, NOW, instantValues } from './helpers/fakePoolDose.js';
@@ -109,6 +109,52 @@ test('roles: an unknown dosing label shown plainly, a wrong unit dropped', () =>
   assert.equal(values.get('free-chlorine'), 0.6);
   assert.equal(values.get('alarm-pump'), 1);
   assert.equal(values.has('temperature'), false);
+});
+
+test('M5, M6: on_off is "on / off"; low and high are said as the device says them', () => {
+  const decoded = new Map([
+    ['peristaltic_ph_dosing', { type: 'sensor', value: 'on_off' }],
+    ['orp_type_dosing', { type: 'sensor', value: 'low' }],
+    ['cl_type_dosing', { type: 'sensor', value: 'high' }],
+  ]);
+  const fr = valuesOf(decoded, 'fr');
+  assert.equal(fr.get('ph-dosing-method'), 'Tout ou rien');
+  assert.equal(fr.get('orp-dosing-type'), 'Bas');
+  assert.equal(fr.get('chlorine-dosing-type'), 'Haut');
+  const en = valuesOf(decoded, 'en');
+  assert.deepEqual(
+    [en.get('ph-dosing-method'), en.get('orp-dosing-type'), en.get('chlorine-dosing-type')],
+    ['On / off', 'Low', 'High'],
+  );
+  // Every dosing value the mappings convert to has a label.
+  for (const key of SUPPORTED) {
+    const [code, fw] = key.split('_FW');
+    for (const [name, entry] of Object.entries(mappingFor(code, fw).mapping)) {
+      if (/dosing/.test(name) && entry.conversion && entry.type !== 'binary_sensor') {
+        for (const value of Object.values(entry.conversion)) {
+          assert.ok(Object.hasOwn(DOSING_LABELS, value), `${key} ${name}: ${value}`);
+        }
+      }
+    }
+  }
+});
+
+test('I1, M1: the units and the booleans of decode', () => {
+  const found = mappingFor('PDPR1H1HAW100', '539187');
+  const key = (name) => `${found.prefix}${found.mapping[name].key}`;
+  const values = decode(
+    {
+      [key('temperature')]: { current: 80, magnitude: ['ºF'] },
+      [key('pump_alarm')]: { current: 1 },
+      [key('ph_level_alarm')]: { current: 'yes' },
+      [key('flow_rate_alarm')]: { current: '0' },
+    },
+    found,
+  );
+  assert.equal(values.get('temperature').unit, '°F');
+  assert.equal(values.get('pump_alarm').value, true);
+  assert.equal(values.get('ph_level_alarm').value, undefined);
+  assert.equal(values.get('flow_rate_alarm').value, false);
 });
 
 test('toNumber: strict', () => {
