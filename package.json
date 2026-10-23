@@ -1,6 +1,6 @@
 {
   "name": "gladys-seko-pooldose",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Gladys Assistant external integration for the SEKO PoolDose pool controllers, read through their local HTTP API (read only). Not affiliated with SEKO.",
   "type": "module",
